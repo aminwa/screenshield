@@ -54,7 +54,7 @@ def _log_findings(conn, findings, app_name):
 
 
 @app.command()
-def on():
+def on(fps: int = typer.Option(0, "--fps", help="override fps from config (0 = use config value)")):
     from screenshield.core.capture import ScreenCapture
     from screenshield.core.ocr import OCRPipeline
     from screenshield.core.detector import Detector
@@ -62,7 +62,7 @@ def on():
     from screenshield.integrations.meetings import MeetingDetector
 
     cfg = _ensure_config()
-    fps = cfg.get("fps", 2)
+    fps = fps if fps > 0 else cfg.get("fps", 2)
     region = cfg.get("region") or None
 
     ocr = OCRPipeline()
