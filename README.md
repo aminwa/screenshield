@@ -1,75 +1,242 @@
+<div align="center">
+
 # screenshield
 
-A local, real-time screen guardian that captures your display, runs OCR, and alerts you the moment credentials or sensitive data appear on screen — before you share your screen or after a paste you're not sure about.
+**Local screen guardian. Detects secrets before you share them.**
 
-## Why
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-15%20passing-brightgreen)](#)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)](#)
 
-Screen-sharing accidents are one of the most common ways secrets leak. You paste a `.env` file into the wrong window, scroll past a terminal with tokens, or share your screen in a meeting with credentials still visible. screenshield catches those moments locally, in real time, with no data leaving your machine.
+*Real-time OCR · 12 secret types · meeting detection · zero cloud*
 
-## Requirements
+</div>
 
-- Python 3.10+
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
+---
 
 ```
-# macOS
-brew install tesseract
-
-# Ubuntu/Debian
-apt install tesseract-ocr
+╔══════════════════════════════════════════════════════════════╗
+║  🛡  screenshield  —  SECRET DETECTED                        ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  🔴  CRITICAL   private_key                                  ║
+║      -----BEGIN RSA PRIVATE****                              ║
+║                                                              ║
+║  🟠  HIGH       github_token                                 ║
+║      ghp_Kx9a****                                            ║
+║                                                              ║
+║  🟡  MEDIUM     env_variable                                 ║
+║      DATABASE_URL=****                                       ║
+║                                                              ║
+║  3 finding(s) · Zoom screen share active · stop sharing     ║
+╚══════════════════════════════════════════════════════════════╝
 ```
+
+---
+
+## What it does
+
+screenshield watches your screen continuously. Every 2 seconds it captures a frame, runs OCR, and scans the text for secrets. If anything is found while you are in a meeting or screen share, it fires a critical alert immediately.
+
+| Feature | Detail |
+|---------|--------|
+| **Real-time capture** | `mss` grabs frames at 2+ FPS with negligible CPU overhead |
+| **Local OCR** | Tesseract with preprocessing tuned for terminal fonts and dark themes |
+| **12 secret types** | AWS, GCP, Azure, GitHub, JWTs, private keys, DB strings, SSNs, credit cards and more |
+| **Meeting detection** | Detects active Zoom, Teams, or Google Meet and escalates alert severity |
+| **Entropy filtering** | Shannon entropy scoring cuts false positives on env variable values |
+| **Zero cloud** | All processing on-device — no telemetry, no accounts, no internet after install |
+
+---
 
 ## Install
 
+**Requirements:** Python 3.10+, [Tesseract](https://github.com/tesseract-ocr/tesseract)
+
 ```bash
-git clone https://github.com/aminwa/screenshield
+# macOS
+brew install tesseract
+
+# Ubuntu / Debian
+sudo apt install tesseract-ocr
+```
+
+```bash
+git clone https://github.com/aminwa/screenshield.git
 cd screenshield
 bash install.sh
 ```
 
-## Usage
+Or manually:
 
 ```bash
-# start the monitor (runs in foreground, Ctrl+C to stop)
+pip install -e .
+```
+
+---
+
+## Quick start
+
+```bash
+# single scan — see what screenshield finds right now
+screenshield scan
+
+# start continuous monitoring (Ctrl-C to stop)
 screenshield on
 
-# stop a background screenshield process
-screenshield off
-
-# show running status, FPS, and today's detection count
+# check whether screenshield is running
 screenshield status
-
-# single-frame scan — useful for quick checks
-screenshield scan
 
 # list all active detection patterns
 screenshield patterns
 
-# rich table of historical detections from local SQLite
+# view detection history
 screenshield stats
+
+# open config in $EDITOR
+screenshield config
 ```
 
-Config lives at `~/.screenshield/config.toml` and is created on first run. Adjust `fps` and `region` there.
+---
 
-## Pattern reference
+## Detection patterns
 
-| Pattern | Severity |
-|---|---|
-| `aws_access_key` | high |
-| `aws_secret_key` | critical |
-| `gcp_api_key` | high |
-| `github_token` | high |
-| `private_key` | critical |
-| `jwt_token` | high |
-| `bearer_token` | high |
-| `db_connection_string` | high |
-| `env_variable` | medium |
-| `credit_card` | critical |
-| `ssn` | critical |
-| `azure_key` | high |
+| Pattern | Severity | Example |
+|---------|----------|---------|
+| `aws_access_key` | 🟠 High | `AKIAIOSFODNN7EXAMPLE` |
+| `aws_secret_key` | 🔴 Critical | `aws_secret = wJalrXUtn...` |
+| `gcp_api_key` | 🟠 High | `AIzaSyD-...` |
+| `github_token` | 🟠 High | `ghp_Kx9aZ...` |
+| `private_key` | 🔴 Critical | `-----BEGIN RSA PRIVATE KEY-----` |
+| `jwt_token` | 🟠 High | `eyJhbGci...` |
+| `bearer_token` | 🟠 High | `Authorization: Bearer abc...` |
+| `db_connection_string` | 🟠 High | `postgres://user:pass@host/db` |
+| `azure_key` | 🟠 High | Azure storage / subscription key |
+| `env_variable` | 🟡 Medium | `SECRET_KEY=xK9d...` (entropy ≥ 3.5 bits) |
+| `credit_card` | 🔴 Critical | 13–19 digit sequence, Luhn-validated |
+| `ssn` | 🔴 Critical | `123-45-6789` |
 
-Credit card detection uses a Luhn check on top of the regex — false positive rate is very low. Environment variable detection uses Shannon entropy to filter out low-value matches like `PORT=8080`.
+Matched values are always **masked** in output — first 4 characters shown, rest replaced with `****`.
+
+---
+
+## Meeting detection
+
+screenshield monitors running processes and escalates all findings to `CRITICAL` when a screen share is active.
+
+| Platform | How it detects |
+|----------|----------------|
+| Zoom | `zoom.us` process |
+| Microsoft Teams | `teams` process |
+| Google Meet | Browser process heuristic |
+
+---
 
 ## Privacy
 
-Nothing leaves your machine. OCR runs locally via Tesseract. Detections are stored in a local SQLite database at `~/.screenshield/detections.db`. No telemetry, no network calls, no cloud.
+Nothing leaves your machine — ever.
+
+| Data | Leaves device? |
+|------|----------------|
+| Screen frames | ✗ Processed in-memory, never written to disk |
+| OCR text | ✗ Stays in-process |
+| Matched secrets | ✗ Masked immediately, stored locally in SQLite |
+| Detection history | ✗ Local only — `~/.screenshield/detections.db` |
+| Network calls | ✗ None — there is no outbound connection |
+
+The local SQLite log stores only: timestamp, secret type, severity, and the masked value. The raw matched string is never persisted.
+
+---
+
+## Configuration
+
+Config lives at `~/.screenshield/config.toml`, created on first run.
+
+```toml
+[capture]
+fps    = 2
+region = "full"   # or { top = 0, left = 0, width = 1920, height = 1080 }
+
+[detection]
+min_severity  = "medium"   # low | medium | high | critical
+entropy_floor = 3.5        # minimum Shannon entropy for env_variable matches
+
+[alerts]
+terminal      = true    # rich banner in terminal
+system        = true    # OS notification via plyer
+blur_overlay  = false   # experimental: blur detected regions on a preview window
+
+[meetings]
+enabled = true
+```
+
+---
+
+## How it works
+
+```
+screen frame (mss)
+      │
+      ▼
+ preprocessing        grayscale → adaptive threshold → sharpen
+      │
+      ▼
+   tesseract           plain text per frame
+      │
+      ▼
+   detector            regex + entropy → list of findings
+      │
+      ▼
+ meeting check         psutil process scan
+      │
+      ▼
+    alert              rich terminal banner + OS notification
+      │
+      ▼
+  sqlite log           ~/.screenshield/detections.db
+```
+
+---
+
+## Project structure
+
+```
+screenshield/
+├── core/
+│   ├── capture.py       # mss screen capture, threaded loop
+│   ├── ocr.py           # tesseract wrapper + preprocessing
+│   ├── detector.py      # regex + entropy engine, Luhn check
+│   └── alert.py         # rich banner + plyer + blur overlay
+├── integrations/
+│   └── meetings.py      # zoom / teams / meet detection via psutil
+├── cli/
+│   └── main.py          # typer CLI — on / off / status / scan / patterns / stats / config
+└── tests/
+    ├── test_detector.py  # one test per pattern type
+    ├── test_ocr.py
+    └── test_meetings.py
+```
+
+---
+
+## Running tests
+
+```bash
+pip install pytest
+pytest tests/ -v
+```
+
+---
+
+## Built by
+
+**AW Labs** — tools that make developers faster.
+
+> "Privacy-first, local-first, fast."
+
+---
+
+## License
+
+MIT © AW Labs
