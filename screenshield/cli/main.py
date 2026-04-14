@@ -160,7 +160,14 @@ def scan():
 
     frame = cap.capture_frame()
     text = ocr.extract_text(frame)
-    findings = detector.detect(text)
+    raw = detector.detect(text)
+    seen = set()
+    findings = []
+    for f in raw:
+        key = (f.type, f.matched)
+        if key not in seen:
+            seen.add(key)
+            findings.append(f)
 
     if findings:
         alert.alert(findings)

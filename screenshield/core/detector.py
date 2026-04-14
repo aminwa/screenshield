@@ -42,7 +42,7 @@ PATTERNS = [
     ("aws_access_key",       "high",     re.compile(r"AKIA[0-9A-Z]{16}")),
     ("aws_secret_key",       "critical", re.compile(r"(?i)aws.?secret.{0,10}['\"\s=:]+([A-Za-z0-9/+]{40})")),
     ("gcp_api_key",          "high",     re.compile(r"AIza[0-9A-Za-z\-_]{35}")),
-    ("github_token",         "high",     re.compile(r"gh[poas]_[A-Za-z0-9]{36,}")),
+    ("github_token",         "high",     re.compile(r"gh[poas]_[A-Za-z0-9]{30,}")),
     ("private_key",          "critical", re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----")),
     ("jwt_token",            "high",     re.compile(r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")),
     ("bearer_token",         "high",     re.compile(r"Bearer ([A-Za-z0-9\-._~+/]+=*)")),
