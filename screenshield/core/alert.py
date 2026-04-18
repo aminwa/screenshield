@@ -2,10 +2,13 @@ import subprocess
 import sys
 from PIL import Image
 from rich.console import Console
+from rich.columns import Columns
 from rich.panel import Panel
+from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 from rich import box
+from pyfiglet import figlet_format
 
 from .detector import Finding
 
@@ -13,9 +16,9 @@ console = Console()
 
 _SEVERITY_ICON = {
     "critical": ("🔴", "bold red"),
-    "high":     ("🟠", "dark_orange"),
-    "medium":   ("🟡", "yellow"),
-    "low":      ("🔵", "blue"),
+    "high":     ("🟠", "bold dark_orange"),
+    "medium":   ("🟡", "bold yellow"),
+    "low":      ("🔵", "bold blue"),
 }
 
 
@@ -30,41 +33,58 @@ def _notify(title: str, message: str):
         pass
 
 
+def _header(n: int, worst: str):
+    _, color = _SEVERITY_ICON.get(worst, ("⚪", "white"))
+
+    logo = figlet_format("screenshield", font="slant")
+    logo_text = Text(logo, style=f"bold {color}")
+
+    subtitle = Text()
+    subtitle.append(f"  {n} secret{'s' if n != 1 else ''} detected on your screen", style=f"bold {color}")
+
+    console.print()
+    console.print(logo_text, justify="center")
+    console.print(Rule(style=color))
+    console.print(subtitle, justify="center")
+    console.print()
+
+
 class AlertManager:
     def alert(self, findings: list[Finding], source_app: str = ""):
         if not findings:
             return
 
-        t = Table(box=None, show_header=False, padding=(0, 2), expand=True)
-        t.add_column("icon",     no_wrap=True, width=2)
-        t.add_column("severity", no_wrap=True, width=10)
-        t.add_column("type",     no_wrap=True, width=26)
-        t.add_column("value",    style="dim")
+        worst = findings[0].severity
+
+        _header(len(findings), worst)
+
+        t = Table(box=box.SIMPLE, show_header=True, header_style="bold white", padding=(0, 2), expand=True)
+        t.add_column("",         no_wrap=True, width=2)
+        t.add_column("SEVERITY", no_wrap=True, width=10)
+        t.add_column("TYPE",     no_wrap=True, style="bold white")
+        t.add_column("DETECTED", style="dim")
 
         for f in findings:
             icon, color = _SEVERITY_ICON.get(f.severity, ("⚪", "white"))
             t.add_row(
                 icon,
                 f"[{color}]{f.severity.upper()}[/{color}]",
-                f"[bold white]{f.type}[/bold white]",
+                f.type,
                 f.matched,
             )
 
-        n = len(findings)
-        worst = findings[0].severity if findings else "low"
-        _, header_color = _SEVERITY_ICON.get(worst, ("⚪", "white"))
+        _, color = _SEVERITY_ICON.get(worst, ("⚪", "white"))
 
-        subtitle = f"[dim]{source_app}[/dim]" if source_app else None
-        header = f"[bold {header_color}]🛡  screenshield  ·  {n} secret{'s' if n != 1 else ''} detected[/bold {header_color}]"
+        footer = ""
+        if source_app:
+            footer = f"[dim]detected via[/dim] [bold]{source_app}[/bold]"
 
-        console.print()
         console.print(Panel(
             t,
-            title=header,
-            subtitle=subtitle,
-            border_style=header_color,
-            box=box.DOUBLE,
+            border_style=color,
+            box=box.ROUNDED,
             padding=(1, 2),
+            subtitle=footer or None,
         ))
         console.print()
 
