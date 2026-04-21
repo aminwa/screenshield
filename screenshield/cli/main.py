@@ -146,8 +146,9 @@ def status():
 def scan():
     from screenshield.core.capture import ScreenCapture
     from screenshield.core.ocr import OCRPipeline
-    from screenshield.core.detector import Detector
+    from screenshield.core.detector import Detector, Finding
     from screenshield.core.alert import AlertManager
+    from screenshield.integrations.meetings import MeetingDetector
 
     cfg = _ensure_config()
     region = cfg.get("region") or None
@@ -156,11 +157,13 @@ def scan():
     ocr = OCRPipeline()
     detector = Detector()
     alert = AlertManager()
+    meetings = MeetingDetector()
     db = _ensure_db()
 
     frame = cap.capture_frame()
     text = ocr.extract_text(frame)
     raw = detector.detect(text)
+
     seen = set()
     findings = []
     for f in raw:
@@ -169,11 +172,23 @@ def scan():
             seen.add(key)
             findings.append(f)
 
+    platform = meetings.active_platform()
+
+    # escalate everything to critical when a meeting is active
+    if platform and findings:
+        findings = [
+            Finding(type=f.type, severity="critical", matched=f.matched, pattern_name=f.pattern_name)
+            for f in findings
+        ]
+
     if findings:
-        alert.alert(findings)
-        _log_findings(db, findings, "scan")
+        alert.alert(findings, source_app=platform or "")
+        _log_findings(db, findings, platform or "scan")
     else:
-        console.print("[green]clean[/green] — no secrets detected")
+        status = f"[green]clean[/green] — no secrets detected"
+        if platform:
+            status += f" [dim]({platform} detected)[/dim]"
+        console.print(status)
 
     db.close()
 

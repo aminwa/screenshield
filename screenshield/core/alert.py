@@ -33,7 +33,7 @@ def _notify(title: str, message: str):
         pass
 
 
-def _header(n: int, worst: str):
+def _header(n: int, worst: str, source_app: str = ""):
     _, color = _SEVERITY_ICON.get(worst, ("⚪", "white"))
 
     logo = figlet_format("screenshield", font="slant")
@@ -46,6 +46,12 @@ def _header(n: int, worst: str):
     console.print(logo_text, justify="center")
     console.print(Rule(style=color))
     console.print(subtitle, justify="center")
+
+    if source_app:
+        warning = Text()
+        warning.append(f"  ⚠️  {source_app} is active — stop sharing now", style="bold red blink")
+        console.print(warning, justify="center")
+
     console.print()
 
 
@@ -56,7 +62,7 @@ class AlertManager:
 
         worst = findings[0].severity
 
-        _header(len(findings), worst)
+        _header(len(findings), worst, source_app)
 
         t = Table(box=box.SIMPLE, show_header=True, header_style="bold white", padding=(0, 2), expand=True)
         t.add_column("",         no_wrap=True, width=2)

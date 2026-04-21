@@ -34,9 +34,4 @@ class MeetingDetector:
         if any("teams" in n for n in names):
             return "Microsoft Teams"
 
-        # Meet runs in-browser; we check if a browser is open and treat it as a
-        # possible sharing session — caller can refine with window title if needed
-        if any(b in names for b in _BROWSERS):
-            return "Google Meet (browser)"
-
         return None
