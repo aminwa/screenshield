@@ -3,6 +3,7 @@ import sys
 import signal
 import sqlite3
 import datetime
+import subprocess
 from pathlib import Path
 
 import toml
@@ -13,15 +14,19 @@ from rich.table import Table
 app = typer.Typer(add_completion=False)
 console = Console()
 
-_CONFIG_DIR = Path.home() / ".screenshield"
+_CONFIG_DIR  = Path.home() / ".screenshield"
 _CONFIG_FILE = _CONFIG_DIR / "config.toml"
-_DB_FILE = _CONFIG_DIR / "detections.db"
-_PID_FILE = _CONFIG_DIR / "screenshield.pid"
+_DB_FILE     = _CONFIG_DIR / "detections.db"
+_PID_FILE    = _CONFIG_DIR / "screenshield.pid"
+_PLIST_LABEL = "com.awlabs.screenshield"
+_PLIST_PATH  = Path.home() / "Library/LaunchAgents" / f"{_PLIST_LABEL}.plist"
+_LOG_FILE    = _CONFIG_DIR / "screenshield.log"
 
 _DEFAULTS = {
     "fps": 2,
     "region": {},
     "notify": True,
+    "redact": True,
 }
 
 
@@ -53,17 +58,89 @@ def _log_findings(conn, findings, app_name):
     conn.commit()
 
 
+def _dedup(findings):
+    seen = set()
+    out = []
+    for f in findings:
+        key = (f.type, f.matched)
+        if key not in seen:
+            seen.add(key)
+            out.append(f)
+    return out
+
+
+def _escalate(findings, Finding):
+    return [
+        Finding(type=f.type, severity="critical", matched=f.matched, pattern_name=f.pattern_name)
+        for f in findings
+    ]
+
+
 @app.command()
-def on(fps: int = typer.Option(0, "--fps", help="override fps from config (0 = use config value)")):
+def start():
+    """register screenshield as a background service that starts on login"""
+    screenshield_bin = subprocess.run(["which", "screenshield"], capture_output=True, text=True).stdout.strip()
+    if not screenshield_bin:
+        console.print("[red]screenshield binary not found — is it installed?[/red]")
+        raise typer.Exit(1)
+
+    _PLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    plist = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>{_PLIST_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{screenshield_bin}</string>
+        <string>on</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>{_LOG_FILE}</string>
+    <key>StandardErrorPath</key>
+    <string>{_LOG_FILE}</string>
+</dict>
+</plist>"""
+
+    _PLIST_PATH.write_text(plist)
+    subprocess.run(["launchctl", "load", str(_PLIST_PATH)], check=True)
+    console.print("[green]screenshield started[/green] — running in background, starts on login")
+    console.print(f"logs: {_LOG_FILE}")
+
+
+@app.command()
+def stop():
+    """remove screenshield from background services"""
+    if not _PLIST_PATH.exists():
+        console.print("screenshield is not registered as a service")
+        raise typer.Exit(1)
+    subprocess.run(["launchctl", "unload", str(_PLIST_PATH)])
+    _PLIST_PATH.unlink(missing_ok=True)
+    console.print("[red]screenshield stopped[/red] — removed from login items")
+
+
+@app.command()
+def on(fps: int = typer.Option(0, "--fps", help="override fps from config")):
+    """start monitoring in the foreground (ctrl-c to stop)"""
     from screenshield.core.capture import ScreenCapture
     from screenshield.core.ocr import OCRPipeline
-    from screenshield.core.detector import Detector
+    from screenshield.core.detector import Detector, Finding
     from screenshield.core.alert import AlertManager
+    from screenshield.core.redact import redact_on_screen
     from screenshield.integrations.meetings import MeetingDetector
+    import mss
 
     cfg = _ensure_config()
     fps = fps if fps > 0 else cfg.get("fps", 2)
     region = cfg.get("region") or None
+    do_redact = cfg.get("redact", True)
 
     ocr = OCRPipeline()
     detector = Detector()
@@ -71,17 +148,40 @@ def on(fps: int = typer.Option(0, "--fps", help="override fps from config (0 = u
     meetings = MeetingDetector()
     db = _ensure_db()
 
-    _PID_FILE.write_text(str(os.getpid()))
+    with mss.mss() as sct:
+        mon = sct.monitors[0]
+        screen_w, screen_h = mon["width"], mon["height"]
 
+    _PID_FILE.write_text(str(os.getpid()))
     cap = ScreenCapture(fps=fps, region=region)
 
     def handle(frame):
-        text = ocr.extract_text(frame)
-        findings = detector.detect(text)
-        if findings:
-            src = meetings.active_platform() or ""
-            alert.alert(findings, source_app=src)
-            _log_findings(db, findings, src)
+        platform = meetings.active_platform()
+        boxes = ocr.extract_with_boxes(frame)
+
+        text = " ".join(b["text"] for b in boxes)
+        raw = detector.detect(text)
+        findings = _dedup(raw)
+
+        if not findings:
+            return
+
+        if platform:
+            findings = _escalate(findings, Finding)
+
+            if do_redact:
+                secret_words = set()
+                for f in findings:
+                    secret_words.add(f.matched[:4].lower())
+
+                hit_boxes = [
+                    b for b in boxes
+                    if any(w in b["text"].lower() for w in secret_words)
+                ]
+                redact_on_screen(hit_boxes or [], screen_w, screen_h, duration_ms=6000)
+
+        alert.alert(findings, source_app=platform or "")
+        _log_findings(db, findings, platform or "")
 
     console.print("[green]screenshield running[/green] — press Ctrl+C to stop")
     cap.start(handle)
@@ -98,6 +198,7 @@ def on(fps: int = typer.Option(0, "--fps", help="override fps from config (0 = u
 
 @app.command()
 def off():
+    """stop a foreground screenshield process"""
     if not _PID_FILE.exists():
         console.print("screenshield is not running")
         raise typer.Exit(1)
@@ -123,6 +224,7 @@ def status():
         except ProcessLookupError:
             pass
 
+    daemon = _PLIST_PATH.exists()
     cfg = _ensure_config()
     fps = cfg.get("fps", 2)
 
@@ -137,21 +239,27 @@ def status():
         count = row[0] if row else 0
 
     state = f"[green]running[/green] (pid {pid})" if running else "[red]stopped[/red]"
-    console.print(f"status   {state}")
-    console.print(f"fps      {fps}")
-    console.print(f"today    {count} detection(s)")
+    console.print(f"status      {state}")
+    console.print(f"daemon      {'[green]registered[/green]' if daemon else '[dim]not registered[/dim]'}")
+    console.print(f"fps         {fps}")
+    console.print(f"redact      {cfg.get('redact', True)}")
+    console.print(f"today       {count} detection(s)")
 
 
 @app.command()
 def scan():
+    """single frame scan"""
     from screenshield.core.capture import ScreenCapture
     from screenshield.core.ocr import OCRPipeline
     from screenshield.core.detector import Detector, Finding
     from screenshield.core.alert import AlertManager
+    from screenshield.core.redact import redact_on_screen
     from screenshield.integrations.meetings import MeetingDetector
+    import mss
 
     cfg = _ensure_config()
     region = cfg.get("region") or None
+    do_redact = cfg.get("redact", True)
 
     cap = ScreenCapture(fps=1, region=region)
     ocr = OCRPipeline()
@@ -160,35 +268,34 @@ def scan():
     meetings = MeetingDetector()
     db = _ensure_db()
 
+    with mss.mss() as sct:
+        mon = sct.monitors[0]
+        screen_w, screen_h = mon["width"], mon["height"]
+
     frame = cap.capture_frame()
+    boxes = ocr.extract_with_boxes(frame)
     text = ocr.extract_text(frame)
     raw = detector.detect(text)
-
-    seen = set()
-    findings = []
-    for f in raw:
-        key = (f.type, f.matched)
-        if key not in seen:
-            seen.add(key)
-            findings.append(f)
+    findings = _dedup(raw)
 
     platform = meetings.active_platform()
 
-    # escalate everything to critical when a meeting is active
     if platform and findings:
-        findings = [
-            Finding(type=f.type, severity="critical", matched=f.matched, pattern_name=f.pattern_name)
-            for f in findings
-        ]
+        findings = _escalate(findings, Finding)
+
+        if do_redact:
+            secret_words = {f.matched[:4].lower() for f in findings}
+            hit_boxes = [b for b in boxes if any(w in b["text"].lower() for w in secret_words)]
+            redact_on_screen(hit_boxes or [], screen_w, screen_h, duration_ms=6000)
 
     if findings:
         alert.alert(findings, source_app=platform or "")
         _log_findings(db, findings, platform or "scan")
     else:
-        status = f"[green]clean[/green] — no secrets detected"
+        msg = "[green]clean[/green] — no secrets detected"
         if platform:
-            status += f" [dim]({platform} detected)[/dim]"
-        console.print(status)
+            msg += f" [dim]({platform} active)[/dim]"
+        console.print(msg)
 
     db.close()
 
