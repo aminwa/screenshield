@@ -87,6 +87,11 @@ def start():
     _PLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
     _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
+    homebrew_prefix = subprocess.run(
+        ["brew", "--prefix"], capture_output=True, text=True
+    ).stdout.strip() or "/opt/homebrew"
+    daemon_path = f"{homebrew_prefix}/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
     plist = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -98,6 +103,11 @@ def start():
         <string>{screenshield_bin}</string>
         <string>on</string>
     </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>{daemon_path}</string>
+    </dict>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
