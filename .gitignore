@@ -5,6 +5,5 @@ dist/
 build/
 .venv/
 venv/
-~/.screenshield/
 *.db
 .env

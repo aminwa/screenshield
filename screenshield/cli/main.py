@@ -361,3 +361,11 @@ def stats():
 
     console.print(t1)
     console.print(t2)
+
+
+@app.command()
+def config():
+    """open the config file in $EDITOR"""
+    _ensure_config()
+    editor = os.environ.get("EDITOR", "nano")
+    subprocess.run([editor, str(_CONFIG_FILE)])
