@@ -6,7 +6,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-15%20passing-brightgreen)](#)
+[![CI](https://github.com/aminwa/screenshield/actions/workflows/ci.yml/badge.svg)](https://github.com/aminwa/screenshield/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)](#)
 
 *Real-time OCR · 12 secret types · meeting detection · zero cloud*
@@ -15,23 +15,7 @@
 
 ---
 
-```
-╔══════════════════════════════════════════════════════════════╗
-║  🛡  screenshield  —  SECRET DETECTED                        ║
-╠══════════════════════════════════════════════════════════════╣
-║                                                              ║
-║  🔴  CRITICAL   private_key                                  ║
-║      -----BEGIN RSA PRIVATE****                              ║
-║                                                              ║
-║  🟠  HIGH       github_token                                 ║
-║      ghp_Kx9a****                                            ║
-║                                                              ║
-║  🟡  MEDIUM     env_variable                                 ║
-║      DATABASE_URL=****                                       ║
-║                                                              ║
-║  3 finding(s) · Zoom screen share active · stop sharing     ║
-╚══════════════════════════════════════════════════════════════╝
-```
+![screenshield demo](demo.gif)
 
 ---
 
@@ -164,7 +148,7 @@ entropy_floor = 3.5        # minimum Shannon entropy for env_variable matches
 
 [alerts]
 terminal      = true    # rich banner in terminal
-system        = true    # OS notification via plyer
+system        = true    # OS notification via osascript (macOS)
 blur_overlay  = false   # experimental: blur detected regions on a preview window
 
 [meetings]
@@ -207,7 +191,7 @@ screenshield/
 │   ├── capture.py       # mss screen capture, threaded loop
 │   ├── ocr.py           # tesseract wrapper + preprocessing
 │   ├── detector.py      # regex + entropy engine, Luhn check
-│   └── alert.py         # rich banner + plyer + blur overlay
+│   └── alert.py         # rich banner + osascript notifications + blur overlay
 ├── integrations/
 │   └── meetings.py      # zoom / teams / meet detection via psutil
 ├── cli/
@@ -223,7 +207,7 @@ screenshield/
 ## Running tests
 
 ```bash
-pip install pytest
+pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
