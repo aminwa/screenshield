@@ -6,7 +6,7 @@ from PIL import Image, ImageFilter
 
 class OCRPipeline:
     def preprocess(self, image: Image.Image) -> Image.Image:
-        # upscale first — tesseract accuracy drops sharply below ~150dpi equivalent
+        # upscale first: tesseract accuracy drops sharply below ~150dpi equivalent
         w, h = image.size
         image = image.resize((w * 2, h * 2), Image.LANCZOS)
         img = np.array(image.convert("L"))

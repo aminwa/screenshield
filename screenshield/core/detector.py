@@ -74,7 +74,7 @@ class Detector:
             digits = re.sub(r"[\s\-]", "", m.group(1))
             if len(digits) < 13 or len(digits) > 19:
                 continue
-            # Luhn check catches most typos — worth the extra pass even on regex match
+            # Luhn check catches most typos, worth the extra pass even on regex match
             if _luhn(digits):
                 findings.append(Finding(
                     type="credit_card",

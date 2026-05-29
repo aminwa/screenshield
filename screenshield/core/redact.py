@@ -28,12 +28,12 @@ def _show(boxes: list[dict], screen_w: int, screen_h: int, duration: int = 5000)
                 font=("Courier", max(10, h // 2), "bold"),
             )
     else:
-        # no boxes — full screen blackout
+        # no boxes: full screen blackout
         canvas.create_rectangle(0, 0, screen_w, screen_h, fill="black", outline="")
 
     canvas.create_text(
         screen_w // 2, screen_h - 60,
-        text="🛡  screenshield  —  secret hidden from screen share",
+        text="🛡  screenshield  -  secret hidden from screen share",
         fill="#ff2222",
         font=("Helvetica", 16, "bold"),
     )

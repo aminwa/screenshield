@@ -21,4 +21,4 @@ screenshield grabs raw frames from your display. The frames are processed in mem
 pytesseract spawns a local `tesseract` subprocess. No network activity. The text is processed in-process and not persisted.
 
 **False negatives**
-screenshield catches common patterns, not all possible secrets. Don't rely on it as your sole line of defence — use secret scanning in your VCS too.
+screenshield catches common patterns, not all possible secrets. Don't rely on it as your sole line of defence; use secret scanning in your VCS too.

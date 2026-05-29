@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "screenshield"
 version = "0.1.0"
-description = "local screen guardian — real-time secret detection via OCR"
+description = "local screen guardian: real-time secret detection via OCR"
 requires-python = ">=3.10"
 dependencies = [
     "mss>=9.0",

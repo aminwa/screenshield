@@ -30,7 +30,7 @@ screenshield watches your screen continuously. Every 2 seconds it captures a fra
 | **12 secret types** | AWS, GCP, Azure, GitHub, JWTs, private keys, DB strings, SSNs, credit cards and more |
 | **Meeting detection** | Detects active Zoom, Teams, or Google Meet and escalates alert severity |
 | **Entropy filtering** | Shannon entropy scoring cuts false positives on env variable values |
-| **Zero cloud** | All processing on-device — no telemetry, no accounts, no internet after install |
+| **Zero cloud** | All processing on-device, no telemetry, no accounts, no internet after install |
 
 ---
 
@@ -63,7 +63,7 @@ pip install -e .
 ## Quick start
 
 ```bash
-# single scan — see what screenshield finds right now
+# single scan: see what screenshield finds right now
 screenshield scan
 
 # start continuous monitoring (Ctrl-C to stop)
@@ -101,7 +101,7 @@ screenshield config
 | `credit_card` | 🔴 Critical | 13–19 digit sequence, Luhn-validated |
 | `ssn` | 🔴 Critical | `123-45-6789` |
 
-Matched values are always **masked** in output — first 4 characters shown, rest replaced with `****`.
+Matched values are always **masked** in output: first 4 characters shown, rest replaced with `****`.
 
 ---
 
@@ -119,15 +119,15 @@ screenshield monitors running processes and escalates all findings to `CRITICAL`
 
 ## Privacy
 
-Nothing leaves your machine — ever.
+Nothing leaves your machine. Ever.
 
 | Data | Leaves device? |
 |------|----------------|
 | Screen frames | ✗ Processed in-memory, never written to disk |
 | OCR text | ✗ Stays in-process |
 | Matched secrets | ✗ Masked immediately, stored locally in SQLite |
-| Detection history | ✗ Local only — `~/.screenshield/detections.db` |
-| Network calls | ✗ None — there is no outbound connection |
+| Detection history | ✗ Local only: `~/.screenshield/detections.db` |
+| Network calls | ✗ None, no outbound connection |
 
 The local SQLite log stores only: timestamp, secret type, severity, and the masked value. The raw matched string is never persisted.
 
@@ -195,7 +195,7 @@ screenshield/
 ├── integrations/
 │   └── meetings.py      # zoom / teams / meet detection via psutil
 ├── cli/
-│   └── main.py          # typer CLI — on / off / status / scan / patterns / stats / config
+│   └── main.py          # typer CLI: on / off / status / scan / patterns / stats / config
 └── tests/
     ├── test_detector.py  # one test per pattern type
     ├── test_ocr.py
@@ -210,14 +210,6 @@ screenshield/
 pip install -e ".[dev]"
 pytest tests/ -v
 ```
-
----
-
-## Built by
-
-**AW Labs** — tools that make developers faster.
-
-> "Privacy-first, local-first, fast."
 
 ---
 

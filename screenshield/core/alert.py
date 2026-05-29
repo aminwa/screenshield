@@ -49,7 +49,7 @@ def _header(n: int, worst: str, source_app: str = ""):
 
     if source_app:
         warning = Text()
-        warning.append(f"  ⚠️  {source_app} is active — stop sharing now", style="bold red blink")
+        warning.append(f"  ⚠️  {source_app} is active, stop sharing now", style="bold red blink")
         console.print(warning, justify="center")
 
     console.print()
@@ -100,7 +100,7 @@ class AlertManager:
     def blur_region(self, image: Image.Image, x: int, y: int, w: int, h: int) -> Image.Image:
         img = image.copy()
         region = img.crop((x, y, x + w, y + h))
-        # pixelate by downscale then upscale — harder blur than gaussian for credentials
+        # pixelate by downscale then upscale, harder blur than gaussian for credentials
         small = region.resize((max(1, w // 8), max(1, h // 8)), Image.BOX)
         pixelated = small.resize((w, h), Image.NEAREST)
         img.paste(pixelated, (x, y))

@@ -81,7 +81,7 @@ def start():
     """register screenshield as a background service that starts on login"""
     screenshield_bin = subprocess.run(["which", "screenshield"], capture_output=True, text=True).stdout.strip()
     if not screenshield_bin:
-        console.print("[red]screenshield binary not found — is it installed?[/red]")
+        console.print("[red]screenshield binary not found, is it installed?[/red]")
         raise typer.Exit(1)
 
     _PLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -121,7 +121,7 @@ def start():
 
     _PLIST_PATH.write_text(plist)
     subprocess.run(["launchctl", "load", str(_PLIST_PATH)], check=True)
-    console.print("[green]screenshield started[/green] — running in background, starts on login")
+    console.print("[green]screenshield started[/green] - running in background, starts on login")
     console.print(f"logs: {_LOG_FILE}")
 
 
@@ -133,7 +133,7 @@ def stop():
         raise typer.Exit(1)
     subprocess.run(["launchctl", "unload", str(_PLIST_PATH)])
     _PLIST_PATH.unlink(missing_ok=True)
-    console.print("[red]screenshield stopped[/red] — removed from login items")
+    console.print("[red]screenshield stopped[/red] - removed from login items")
 
 
 @app.command()
@@ -193,7 +193,7 @@ def on(fps: int = typer.Option(0, "--fps", help="override fps from config")):
         alert.alert(findings, source_app=platform or "")
         _log_findings(db, findings, platform or "")
 
-    console.print("[green]screenshield running[/green] — press Ctrl+C to stop")
+    console.print("[green]screenshield running[/green] - press Ctrl+C to stop")
     cap.start(handle)
 
     try:
@@ -302,7 +302,7 @@ def scan():
         alert.alert(findings, source_app=platform or "")
         _log_findings(db, findings, platform or "scan")
     else:
-        msg = "[green]clean[/green] — no secrets detected"
+        msg = "[green]clean[/green] - no secrets detected"
         if platform:
             msg += f" [dim]({platform} active)[/dim]"
         console.print(msg)
