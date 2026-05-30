@@ -1,5 +1,4 @@
-import io, json, subprocess, time
-import sys
+import io, json, subprocess, time, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -109,7 +108,8 @@ def build_cast(cast_path, gif_path):
 
 
 if __name__ == "__main__":
+    here = Path(__file__).parent
     build_cast(
-        "/Users/aminwafi/screenshield_demo.cast",
-        "/Users/aminwafi/screenshield/demo.gif",
+        str(here / "screenshield_demo.cast"),
+        str(here / "demo.gif"),
     )
